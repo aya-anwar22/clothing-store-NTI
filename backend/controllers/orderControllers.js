@@ -3,33 +3,72 @@ const asyncHandler = require('express-async-handler');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const User = require('../models/User.js');
+const transporter = require('../config/mailConfig');
 
-exports.createOrder = asyncHandler(async(req, res) =>{
-    const userId = req.user._id;
-    const { addressId } = req.body;
-    if(!addressId){
-        return res.status(404).json({
-            message: "Address is required"
-        })
-    }
+const checkAndAlertStock = async (product) => {
+  if (
+    product.stockAlertThreshold &&
+    product.quantity <= product.stockAlertThreshold
+  ) {
+    const mailOptions = {
+      from: process.env.ADMIN_EMAIL,
+      to: process.env.ADMIN_EMAIL, 
+      subject: `Stock Alert: ${product.productName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2 style="color: #d9534f;">Stock Alert</h2>
+          <p style="font-size: 16px;">
+            The product <strong>${product.productName}</strong> has reached the low stock threshold.
+          </p>
+          <p>Remaining Quantity: <strong>${product.quantity}</strong></p>
+          <p>Threshold Limit: <strong>${product.stockAlertThreshold}</strong></p>
+          <p>Please consider restocking it soon.</p>
+        </div>
+      `
+    };
 
-    const user = await User.findById(userId)
-    if(!user){
-        return res.status(404).json({message: "User not found"})
-    }
+    await transporter.sendMail(mailOptions);
+  }
+};
+exports.createOrder = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { addressId } = req.body;
 
+  if (!addressId) {
+    return res.status(404).json({ message: "Address is required" });
+  }
 
-    const cart = await Cart.findOne({ userId }).populate('items.productId');
-    if(!cart || cart.items.length === 0){
-        return res.status(400).json({ message: 'Your cart is empty' });
-    }
+  const user = await User.findById(userId);
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
 
-    const selectedAddress = user.addresses.find(
+  const cart = await Cart.findOne({ userId }).populate('items.productId');
+  if (!cart || cart.items.length === 0) {
+    return res.status(400).json({ message: 'Your cart is empty' });
+  }
+
+  const selectedAddress = user.addresses.find(
     (addr) => addr._id.toString() === addressId
   );
 
   if (!selectedAddress) {
     return res.status(404).json({ message: 'Address not found' });
+  }
+
+  // Check and update product quantities
+  for (let item of cart.items) {
+    const product = item.productId;
+    if (product.quantity < item.quantity) {
+      return res.status(400).json({
+        message: `Not enough quantity for product: ${product.productName}`
+      });
+    }
+
+    // Reduce the quantity
+    product.quantity -= item.quantity;
+     await checkAndAlertStock(product); 
+    await product.save();
   }
 
   const orderItems = cart.items.map((item) => ({
@@ -48,7 +87,7 @@ exports.createOrder = asyncHandler(async(req, res) =>{
     status: 'preparing',
     paymentMethod: 'cash',
     placedAt: new Date(),
-    returnDeadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), 
+    returnDeadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
   });
 
   await order.save();
@@ -63,15 +102,14 @@ exports.createOrder = asyncHandler(async(req, res) =>{
   });
 });
 
+
 exports.getOrderById = asyncHandler(async (req, res) => {
   const orderId = req.params.orderId;
   const userId = req.user._id;
   const userRole = req.user.role;
 
   const order = await Order.findById(orderId)
-    .populate('items.productId', 'productName price imageUrl') 
-    .populate('userId', 'userName email');
-
+  .populate('items.productId', '_id productName price imageUrl') 
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });
   }
@@ -87,15 +125,18 @@ exports.getOrderById = asyncHandler(async (req, res) => {
 exports.getOrders = asyncHandler(async(req, res) =>{
   const userId = req.user._id;
 
-  const orders = await Order.find()
-    .populate('items.productId', 'productName price imageUrl') 
-    .populate('userId', 'userName email');
+  const orders = await Order.find({ userId })
+  .populate({
+    path: 'items.productId',
+    select: 'productName price productImages'
+  });
 
   if (!orders) {
     return res.status(404).json({ message: 'Order not found' });
   }
+
   res.status(200).json(orders);
-})
+});
 
 
 exports.requestReturn = asyncHandler(async(req, res) =>{
@@ -177,6 +218,7 @@ exports.getAllOrders = asyncHandler(async (req, res) => {
 
   const orders = await Order.find(filter)
     .populate("userId", "userName email")
+     .populate('items.productId', '_id productName price imageUrl') 
     .sort({ createdAt: -1 });
 
   res.status(200).json({ count: orders.length, orders });
@@ -187,7 +229,7 @@ exports.getAllOrders = asyncHandler(async (req, res) => {
 exports.getOrderDetails = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.orderId)
     .populate("userId", "userName email")
-    .populate("items.productId", "productName imageUrl");
+     .populate('items.productId', '_id productName price imageUrl') 
 
   if (!order) {
     return res.status(404).json({ message: "Order not found" });
@@ -218,23 +260,6 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
 
 
 
-exports.confirmReturn = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.orderId);
-
-  if (!order) {
-    return res.status(404).json({ message: "Order not found" });
-  }
-
-  order.returnInfo = {
-    isReturned: true,
-    returnedBy: req.user._id, // الأدمن
-    returnedAt: new Date()
-  };
-
-  await order.save();
-
-  res.status(200).json({ message: "Return confirmed" });
-});
 
 
 

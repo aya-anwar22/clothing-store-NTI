@@ -1,10 +1,27 @@
 const express = require('express');
 const app = express();
+const cors =require('cors')
+const session = require('express-session');
+const passport = require('passport');
+app.use(cors());
 require('dotenv').config();
 const morgan = require('morgan');
 const dbConnection = require('./config/db');
 const port = process.env.PORT;
 app.use(express.json());
+require('./config/passport');
+
+
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: true,
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+
 
 const authRouter = require('./Routers/authRouter');
 const brandRouter = require('./Routers/brandRouter');
@@ -15,8 +32,10 @@ const reviewRouter = require('./Routers/reviewRouter')
 const productRouter = require('./Routers/productRouter')
 const cartRouter = require('./Routers/cartRouter')
 const orderRouter = require('./Routers/orderRouter')
+const aboutRouter = require('./Routers/aboutUsRouter');
+const dashboardRoutes = require('./Routers/dashboardRoutes');
 
-
+const contactRouter =require('./Routers/contactRouter')
 const globalError = require('./middleWare/globalError')
 const ApiError = require('./utils/apiError')
 app.use('/v1/auth', authRouter);
@@ -28,6 +47,9 @@ app.use('/api/v1/review', reviewRouter);
 app.use('/api/v1/product', productRouter);
 app.use('/api/v1/cart', cartRouter);
 app.use('/api/v1/order', orderRouter);
+app.use('/api/v1/about', aboutRouter);
+app.use('/api/v1/contact', contactRouter)
+app.use('/api/v1/dashboard', dashboardRoutes)
 
 dbConnection()
 //middleWare 
@@ -54,6 +76,6 @@ if(process.env.NODE_ENV ==="development"){
 }
 
 
-app.listen(port, ()=>{
-    console.log(`server is running on port ${port}`)
+app.listen(3000, ()=>{
+    console.log(`server is running on port 8000`)
 })

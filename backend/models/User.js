@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt')
 
 const userSchema = new mongoose.Schema({
+    googleId: String,
+
   userName: {
     type: String,
     // required:true,
@@ -11,7 +13,7 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     unique: true,
-    required:true,
+  
     lowercase: true,
     match: [
       /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,})+$/,
@@ -21,8 +23,8 @@ const userSchema = new mongoose.Schema({
 
   password: {
     type: String,
-    required: true,
-    minlength: [10, 'Too short Password']
+    // required: true,
+    // minlength: [10, 'Too short Password']
   },
 
   emailVerificationCode: {
@@ -54,7 +56,7 @@ const userSchema = new mongoose.Schema({
   phoneNumber: {
     type: String,
     // required:true,
-    unique: true,
+    // unique: true,
     // validate:{
     //     validator:function(v){
     //         return /\d{11/.test(v);

@@ -8,11 +8,6 @@ const Subcategory = require('../models/Subcategory');
 // for admin
 exports.addSubCategory = asyncHandler(async(req, res) =>{
     const { subcategoryName, categoryId } = req.body;
-    const isAdmin = req.user && req.user.role === 'admin';
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
     const category = await Category.findById(categoryId);
     if(!category){
         return res.status(404).json({message : "Category not found"})
@@ -39,37 +34,15 @@ exports.addSubCategory = asyncHandler(async(req, res) =>{
 });
 
 exports.getAllSubCategory = asyncHandler(async(req, res) =>{
-    const isAdmin = req.user && req.user.role === 'admin';
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    const search = req.query.search || '';
-    const searchRegex = new RegExp(search, 'i');
-    const totalSubCategories = await SubCategory.countDocuments({subcategoryName: searchRegex});
-    const subCategories = await SubCategory.find({subcategoryName: searchRegex})
-    .skip(skip)
-    .limit(limit)
-    .sort({ createAt: -1});
-
     return res.status(200).json({
-        totalSubCategories,
-        currentPage: page,
-        totalPage: Math.ceil(totalSubCategories),
-        subCategories
+    activeSubCategory: res.paginateMiddleWare.active,
+    deletedSubCategory: res.paginateMiddleWare.deleted
+
     })
-    
 });
 
 exports.getSubCategoryById = asyncHandler(async(req, res) =>{
     const isAdmin = req.user && req.user.role === 'admin';
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
     const subCategoryId = req.params.subCategoryId
     const subCategory = await SubCategory.findById(subCategoryId);
     if(!subCategory){
@@ -83,11 +56,6 @@ exports.getSubCategoryById = asyncHandler(async(req, res) =>{
 exports.updateSubCategory = asyncHandler(async (req, res) => {
     const subCategoryId = req.params.subCategoryId;
     const { subcategoryName, categoryId } = req.body;
-    const isAdmin = req.user && req.user.role === 'admin';
-
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
     const category = await Category.findById(categoryId);
     if(!category){
         return res.status(404).json({message : "Category not found"})
@@ -134,22 +102,20 @@ exports.updateSubCategory = asyncHandler(async (req, res) => {
 
 exports.deleteSubCategory = asyncHandler(async(req, res) =>{
     const subCategoryId = req.params.subCategoryId;
-    const isAdmin = req.user && req.user.role === 'admin';
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
     const subCategory = await SubCategory.findById(subCategoryId);
     if(!subCategory){
         return res.status(404).json({
             message: "SubCategory not found"
         })
     }
-    if(subCategory.isDeleted){
-        return res.status(400).json({
-            message : "SubCategory Deleted Successfully"
-        })
+     if (subCategory.isDeleted) {
+        subCategory.isDeleted = false;
+        subCategory.deletedAt = null;
+        subCategory.deletedBy = null;
+        await subCategory.save();
+        return res.status(200).json({ message: 'subCategory restored successfully' });
     }
+
     subCategory.isDeleted = true;
     subCategory.deletedAt = new Date();
     subCategory.deletedBy = req.user._id
@@ -163,27 +129,9 @@ exports.deleteSubCategory = asyncHandler(async(req, res) =>{
 // for user
 exports.getAllSubCategoryByUser = asyncHandler(async(req, res) =>{
 
-    // pagination
-    const page = parseInt(req.query.page);
-    const limit = parseInt(req.query.limit);
-    const skip = (page - 1 ) * limit;
-
-    // search
-    const search = req.query.search || '';
-    const searchRegex = new RegExp(search, 'i');
-    const totalSubCategory = await SubCategory.countDocuments({subcategoryName:searchRegex, isDeleted: false} )
-    const subCategorys = await SubCategory.find({subcategoryName: searchRegex, isDeleted: false}).select('-_id -isDeleted -deletedAt -deletedBy')    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt : -1}
-
-    
-    )
     return res.status(200).json({
-        totalSubCategory,
-        currentPage: page,
-        totalPage: Math.ceil(totalSubCategory / limit),
-        subCategorys
-    })
+    activesubcategory: res.paginateMiddleWare.active,
+  });
 
     })
 
@@ -192,7 +140,7 @@ exports.getSubcategoryByIdByUser = asyncHandler(async(req, res) =>{
     const subCategory = await SubCategory.findOne({
     _id: subCategoryId,
     isDeleted: false
-    }).select('-_id -isDeleted -deletedAt -deletedBy');
+    }).select('-isDeleted -deletedAt -deletedBy');
     if(!subCategory){
         return res.status(404).json({
             message: "Sub-Category not found"

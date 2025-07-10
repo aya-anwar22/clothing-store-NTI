@@ -5,10 +5,14 @@ const Order = require('../models/Order');
 
 exports.addToCart = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const { productId, quantity } = req.body;
+  if (!userId) {
+    return res.status(400).json({ message: "Access denied" });
+  }
 
-  if (!productId) {
-    return res.status(400).json({ message: "Product is required" });
+  const { productId, quantity=1 } = req.body;
+
+  if (!productId  || quantity < 1) {
+    return res.status(400).json({ message: "Valid productId and quantity are required" });
   }
 
   const product = await Product.findById(productId);
@@ -16,8 +20,12 @@ exports.addToCart = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Product not found" });
   }
 
+  if (quantity > product.quantity) {
+    return res.status(400).json({ message: `Only ${product.quantity} items are available in stock.` });
+  }
+
   const originalPrice = product.price;
-  const currentPrice = product.price; 
+  const currentPrice = product.price;
 
   let cart = await Cart.findOne({ userId });
 
@@ -38,7 +46,13 @@ exports.addToCart = asyncHandler(async (req, res) => {
     );
 
     if (existingItemIndex > -1) {
-      cart.items[existingItemIndex].quantity += quantity;
+      const totalQuantity = cart.items[existingItemIndex].quantity + quantity;
+
+      if (totalQuantity > product.quantity) {
+        return res.status(400).json({ message: `Cannot add ${quantity} more. Only ${product.quantity - cart.items[existingItemIndex].quantity} items left in stock.` });
+      }
+
+      cart.items[existingItemIndex].quantity = totalQuantity;
       cart.items[existingItemIndex].addedAt = new Date();
       cart.items[existingItemIndex].originalPrice = originalPrice;
       cart.items[existingItemIndex].currentPrice = currentPrice;
@@ -56,6 +70,7 @@ exports.addToCart = asyncHandler(async (req, res) => {
   await cart.save();
   res.status(200).json({ message: 'Product added to cart successfully', cart });
 });
+
 
 
 // GET /cart
@@ -103,7 +118,6 @@ exports.getCart = asyncHandler(async (req, res) => {
 
 
 
-// update cart    لا يُسمح بالتعديل لو الأوردر في حالة shipped.
 exports.updateCartItem = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { productId, quantity } = req.body;
@@ -112,7 +126,6 @@ exports.updateCartItem = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Valid productId and quantity are required' });
   }
 
-  // check if the product is part of a shipped order
   const shippedOrder = await Order.findOne({
     userId,
     'items.productId': productId,
@@ -123,8 +136,16 @@ exports.updateCartItem = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Cannot update quantity. Product already shipped in an order.' });
   }
 
-  const cart = await Cart.findOne({ userId });
+  const product = await Product.findById(productId);
+  if (!product) {
+    return res.status(404).json({ message: 'Product not found' });
+  }
 
+  if (quantity > product.quantity) {
+    return res.status(400).json({ message: `Only ${product.quantity} items are available in stock.` });
+  }
+
+  const cart = await Cart.findOne({ userId });
   if (!cart) {
     return res.status(404).json({ message: 'Cart not found' });
   }
@@ -142,6 +163,7 @@ exports.updateCartItem = asyncHandler(async (req, res) => {
 
   res.status(200).json({ message: 'Cart item updated successfully', cart });
 });
+
 
 //DELETE cart
 exports.removeFromCart = asyncHandler(async (req, res) => {

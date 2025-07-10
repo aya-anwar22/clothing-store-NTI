@@ -7,7 +7,6 @@ const authenticate = require('../middleWare/authenticate');
 router.get('/orders', authenticate, orderControllers.getAllOrders);
 router.get("/orders/:orderId", authenticate, orderControllers.getOrderDetails);
 router.patch("/orders/:orderId", authenticate, orderControllers.updateOrderStatus);
-router.patch("/confirm-return/:orderId", authenticate, orderControllers.confirmReturn);
 router.get('/cart', authenticate, orderControllers.getAllCarts);
 
 

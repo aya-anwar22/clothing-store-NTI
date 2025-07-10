@@ -15,10 +15,6 @@ exports.addProduct = asyncHandler(async(req, res) =>{
             message: "All filed required"
         })
     }
-    const isAdmin = req.user && req.user.role === 'admin';
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
 
     const subcategory = await SubCategory.findById(subcategoryId);
     if(!subcategory){
@@ -50,37 +46,14 @@ exports.addProduct = asyncHandler(async(req, res) =>{
 });
 
 exports.getAllProduct = asyncHandler(async(req, res) =>{
-    const isAdmin = req.user && req.user.role === 'admin';
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
+   return res.status(200).json({
+    activeProduct: res.paginateMiddleWare.active,
+    deletedProduct: res.paginateMiddleWare.deleted
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    const search = req.query.search || '';
-    const searchRegex = new RegExp(search, 'i');
-    const totalProductes = await Product.countDocuments({productName: searchRegex});
-    const productes = await Product.find({productName: searchRegex})
-    .skip(skip)
-    .limit(limit)
-    .sort({ createAt: -1});
-
-    return res.status(200).json({
-        totalProductes,
-        currentPage: page,
-        totalPage: Math.ceil(totalProductes),
-        productes
     })
-    
 });
 
 exports.getProductById = asyncHandler(async(req, res) =>{
-    const isAdmin = req.user && req.user.role === 'admin';
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
     const productId = req.params.productId
     const product = await Product.findById(productId);
     if(!product){
@@ -94,11 +67,6 @@ exports.getProductById = asyncHandler(async(req, res) =>{
 exports.updateProduct = asyncHandler(async (req, res) => {
     const productId = req.params.productId;
     const { productName,subcategoryId, brandId, price, quantity,gender, stockAlertThreshold} = req.body;
-    const isAdmin = req.user && req.user.role === 'admin';
-
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
     const product = await Product.findById(productId);
     if (!product) {
         return res.status(404).json({ message: "product not found" });
@@ -157,22 +125,21 @@ exports.updateProduct = asyncHandler(async (req, res) => {
 
 exports.deleteProduct = asyncHandler(async(req, res) =>{
     const productId = req.params.productId;
-    const isAdmin = req.user && req.user.role === 'admin';
-    if (!isAdmin) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
-
     const product = await Product.findById(productId);
     if(!product){
         return res.status(404).json({
             message: "product not found"
         })
     }
-    if(product.isDeleted){
-        return res.status(400).json({
-            message : "product Deleted Successfully"
-        })
+
+    if (product.isDeleted) {
+        product.isDeleted = false;
+        product.deletedAt = null;
+        product.deletedBy = null;
+        await product.save();
+        return res.status(200).json({ message: 'product restored successfully' });
     }
+
     product.isDeleted = true;
     product.deletedAt = new Date();
     product.deletedBy = req.user._id
@@ -184,38 +151,52 @@ exports.deleteProduct = asyncHandler(async(req, res) =>{
 })
 
 // // for user
-exports.getAllProductByUser = asyncHandler(async(req, res) =>{
 
-    // pagination
-    const page = parseInt(req.query.page);
-    const limit = parseInt(req.query.limit);
-    const skip = (page - 1 ) * limit;
+exports.getAllProductByUser = asyncHandler(async (req, res) => {
+  const categoryId = req.query.category;
+  const brandId = req.query.brand;
+  const subcategoryId = req.query.subcategory;
 
-    // search
-    const search = req.query.search || '';
-    const searchRegex = new RegExp(search, 'i');
-    const totalProductes = await Product.countDocuments({productName:searchRegex, isDeleted: false} )
-    const products = await Product.find({productName: searchRegex, isDeleted: false}).select('-_id -isDeleted -deletedAt -deletedBy')    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt : -1}
+  // 1️⃣ تجهيز فلتر فارغ
+  let filter = { isDeleted: false };
 
-    
-    )
-    return res.status(200).json({
-        totalProductes,
-        currentPage: page,
-        totalPage: Math.ceil(totalProductes / limit),
-        products
-    })
+  // 2️⃣ لو فيه subcategoryId → نحطه في الفلتر
+  if (subcategoryId) {
+    filter.subcategoryId = subcategoryId;
+  }
 
-    })
+  // 3️⃣ لو فيه categoryId → نجيب الـ subcategories اللي جواه ونفلتر بيها
+  if (categoryId) {
+    const subcategories = await Subcategory.find({ categoryId, isDeleted: false }).select('_id');
+    const subcategoryIds = subcategories.map(sc => sc._id);
+    filter.subcategoryId = { $in: subcategoryIds };
+  }
+
+  // 4️⃣ لو فيه brandId
+  if (brandId) {
+    filter.brandId = brandId;
+  }
+
+  // 5️⃣ جلب المنتجات بعد الفلترة
+  const products = await Product.find(filter);
+
+  return res.status(200).json({
+    message: 'Filtered products',
+    activeProdut: {
+      total: products.length,
+      dataActive: products,
+      currentPage: 1,
+      totalPages: 1
+    }
+  });
+});
 
 exports.getProductByIdByUser = asyncHandler(async(req, res) =>{
     const productId = req.params.productId
     const product = await Product.findOne({
     _id: productId,
     isDeleted: false
-    }).select('-_id -isDeleted -deletedAt -deletedBy');
+    }).select('-isDeleted -deletedAt -deletedBy');
     if(!product){
         return res.status(404).json({
             message: "productnot found"

@@ -78,4 +78,3 @@ exports.deleteReview = asyncHandler(async (req, res) => {
     res.status(200).json({ message: "Review deleted successfully" });
 });
 
-//Delete Review
