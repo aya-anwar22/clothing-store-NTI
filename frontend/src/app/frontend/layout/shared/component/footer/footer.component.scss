@@ -1,0 +1,122 @@
+.site-footer {
+  background-color: #1a1a1a;
+  color: white;
+  padding: 3rem 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+
+  .footer-main {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+
+    .footer-brand {
+      .footer-logo {
+        margin-bottom: 1rem;
+      }
+
+      .footer-description {
+        margin-bottom: 1.5rem;
+        line-height: 1.6;
+      }
+
+      .social-links {
+        display: flex;
+        gap: 1rem;
+
+        a {
+          color: white;
+          font-size: 1.2rem;
+          transition: opacity 0.3s;
+
+          &:hover {
+            opacity: 0.8;
+          }
+        }
+      }
+    }
+
+    .footer-links {
+      h5 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+      }
+
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+          margin-bottom: 0.5rem;
+
+          a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+
+            &:hover {
+              color: white;
+            }
+          }
+        }
+      }
+    }
+
+    .footer-payment {
+      .payment-methods {
+        max-width: 100%;
+        height: auto;
+      }
+    }
+  }
+
+  .footer-bottom {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 1.5rem;
+    text-align: center;
+    
+    p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+}
+
+@media (max-width: 767.98px) {
+  .site-footer {
+    .footer-main {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+}
+
+/* Back to Top Button */
+.back-to-top {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #363434;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+  
+  &.visible {
+    opacity: 1;
+  }
+  
+  &:hover {
+    background-color: darken(#363434, 10%);
+  }
+}

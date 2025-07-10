@@ -1,0 +1,27 @@
+<div class="top-header border-bottom">
+  <div class="container">
+    <div class="contact-info">
+  <span class="contact-item">
+    <a href="tel:+201097206111" class="contact-item text-white text-decoration-none">
+      <i class="bi bi-telephone-fill"></i> (+20) 1097206111
+    </a>
+  </span>
+  <span class="separator">|</span>
+  <span class="contact-item">
+    <a href="https://www.google.com/maps/place/26H2%2B6Q5+Creativa+Innovation+Hub+-+Giza,+Ad+Doqi,+Dokki,+Giza+Governorate+3750010/data=!4m2!3m1!1s0x1458478edeca5f99:0xfda48681d55fd9be?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESCjExLjEyMy4xMDMYACDXggMqPyw5NDIxMjQ5Niw5NDIwNzUwNiw5NDIwODUwNiw5NDIxNzUyMyw5NDIxODY1Myw0NzA4NDM5Myw5NDIxMzIwMEICRUc%3D&skid=aadd872b-3f03-433d-88b1-13f22fc5d74b" target="_blank" class="contact-item text-white text-decoration-none">
+      <i class="bi bi-geo-alt-fill"></i> Our Location
+    </a>
+  </span>
+</div>
+
+
+    <div class="extras">
+      <a *ngIf="!userName" href="/login" class="login-link">
+        <i class="bi bi-person-circle"></i> Log In / Sign Up
+      </a>
+      <a *ngIf="userName" href="/profile" class="login-link">
+        <i class="bi bi-person-check-fill"></i> Welcome, {{ userName }}
+      </a>
+    </div>
+  </div>
+</div>
